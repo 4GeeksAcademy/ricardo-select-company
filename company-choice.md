@@ -44,63 +44,15 @@ Elegí Brasaland por tres razones:
 - Dar de alta a un empleado nuevo con un itinerario de onboarding con pasos y progreso visible.
 - Conectar recetas con ingredientes reales (`recipe_ingredients`) para poder, a futuro, descontar stock automáticamente al vender un plato — este es el puente entre Formación y Operaciones.
 
-## Mi idea de agente de IA
+## Objetivo del milestone
 
-### Alcance
+Con base en el análisis anterior, el objetivo de este proyecto es:
 
-Diseñar la arquitectura (modelo de datos, API y lógica de negocio) que resuelve, para los dos departamentos anteriores:
-- Gestión de ventas en tiempo real, ingredientes, stock, pedidos sugeridos y alertas por local (Operaciones).
-- Gestión de recetas y sus versiones, ingredientes compartidos con Operaciones, y onboarding de empleados con seguimiento de progreso (Formación).
+> Dar visibilidad y control en tiempo real a **Operaciones de restaurante** (ventas, stock y pedidos sugeridos por local) y estandarizar la **Formación** (recetas versionadas y onboarding) a través de los 14 locales de Brasaland en Colombia y EE. UU., cerrando la brecha entre lo que pasa en cada local y lo que sabe la sede en Medellín.
 
-### Stack tecnológico
+Este objetivo se considera alcanzado cuando, para cada departamento, se pueda responder sin llamadas ni hojas de Excel a las preguntas que hoy no tienen respuesta:
 
-| Capa | Tecnologías |
-| --- | --- |
-| Frontend | React, TypeScript, styled-components, API REST, WebSocket |
-| Backend | Node.js, TypeScript, PostgreSQL, API REST, WebSocket |
+- **Operaciones:** ¿cuánto llevamos vendido hoy, por local y consolidado? ¿qué local se está quedando sin un ingrediente? ¿qué local abierto no ha reportado ventas?
+- **Formación:** ¿qué versión de una receta está vigente en cada local? ¿qué locales aún no la han confirmado? ¿en qué punto de su onboarding está cada empleado nuevo?
 
-### Modelo de datos (unificado)
-
-**Base compartida**
-- `locations` (14 locales: país, moneda, zona horaria, horario de apertura por día, idioma por defecto).
-- `users` / `roles` (roles unificados de ambos dominios).
-
-**Operaciones**
-- `sales` / `sale_items` (venta con local, timestamp, importe en moneda local, nº de cubiertos).
-- `ingredients` (con unidad de medida) — compartida con Formación.
-- `location_stock` (stock de cada ingrediente por local, con umbral mínimo).
-- `stock_movements` (entradas/salidas/consumo).
-- `suggested_orders` (pedidos sugeridos por el motor).
-- `alerts` (tipo, local, estado, timestamp).
-
-**Formación**
-- `recipes` y `recipe_versions` (solo una versión "publicada" vigente).
-- `recipe_translations` (título, descripción, pasos, notas de presentación por idioma).
-- `recipe_ingredients` (relación receta↔ingredientes con cantidades — conecta ambos dominios y permite descontar stock por venta).
-- `categories`.
-- `recipe_acknowledgements` (qué local ha confirmado qué versión y cuándo).
-- `onboarding_paths`, `onboarding_steps`.
-- `employees` / `employee_progress` / `employee_start_date`.
-
-### API REST (unificada)
-
-Agrupada por dominio, compartiendo auth, roles e i18n.
-
-- **Operaciones:** ingesta de ventas (simula el POS); consulta de ventas (cadena y por local, por rango de fechas, en USD); consulta de stock; generación/consulta de pedidos sugeridos; gestión de alertas; conversión de moneda (tipo de cambio configurable).
-- **Formación:** CRUD de recetas y publicación de versiones; búsqueda (texto + filtros por categoría/ingrediente + idioma); distribución de versión a los 14 locales y registro de acuses; gestión de itinerarios y progreso de empleados; selección de idioma con fallback a español.
-
-### Lógica de negocio clave
-
-- **Motor de pedidos sugeridos:** dado el histórico de ventas y el stock actual de un local, calcula qué reponer y cuánto. Heurística explicada y parametrizable (p. ej. consumo medio diario × días de cobertura − stock actual). Sin ML.
-- **Sistema de alertas:** job programado que, según horario de apertura y zona horaria de cada local, detecta locales abiertos sin ventas y genera alerta.
-- **Agregación en tiempo real:** recálculo y push de totales del dashboard al llegar nuevas ventas (WebSockets).
-- **Publicación y distribución de recetas:** al publicar una versión, marca la anterior como obsoleta, genera "pendiente de confirmar" para los 14 locales y expone el estado por local.
-- **Búsqueda:** full-text de PostgreSQL respetando el idioma con fallback al base.
-- **Progreso de onboarding:** al completar un paso, actualiza el progreso y calcula el % de avance.
-
-### Frontend (React)
-
-Componentes para ambos dominios bajo una misma shell con navegación y selector de idioma.
-
-- **Operaciones:** dashboard principal (total de cadena hoy en COP y USD, desglose por local, tiempo real, cubiertos y ticket medio); vista de local (ventas + stock + pedidos sugeridos); panel de alertas; selector de moneda de visualización.
-- **Formación:** catálogo de recetas con búsqueda, filtros y selector de idioma; detalle de receta (versión vigente, ingredientes, pasos, notas de presentación); panel del equipo de Formación para editar y publicar versión, con estado de confirmación por local; vista de onboarding de un empleado con su progreso.
+El *cómo* (arquitectura, stack, modelo de datos, agente) se define en el siguiente hito.
